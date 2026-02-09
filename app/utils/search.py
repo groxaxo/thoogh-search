@@ -197,11 +197,11 @@ class Search:
             categories = 'images'
 
         # Map Whoogle time period (tbs) to SearXNG time_range
+        # SearXNG supports: day, week, month, year (no hourly option)
         time_range = ''
         tbs = self.request_params.get('tbs', '')
-        if 'qdr:h' in tbs:
-            time_range = 'day'
-        elif 'qdr:d' in tbs:
+        if 'qdr:h' in tbs or 'qdr:d' in tbs:
+            # Hourly (qdr:h) falls back to 'day' since SearXNG has no hourly range
             time_range = 'day'
         elif 'qdr:w' in tbs:
             time_range = 'week'
