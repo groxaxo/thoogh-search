@@ -18,6 +18,7 @@ from app.models.config import Config
 from app.models.endpoint import Endpoint
 from app.request import Request, TorError
 from app.services.cse_client import CSEException
+from app.services.searxng_client import SearXNGException
 from app.utils.bangs import suggest_bang, resolve_bang
 from app.utils.misc import empty_gif, placeholder_img, get_proxy_host_url, \
     fetch_favicon
@@ -381,6 +382,26 @@ def search():
             error_message=error_msg,
             translation=translation,
             config=g.user_config), e.code
+    except SearXNGException as e:
+        localization_lang = g.user_config.get_localization_lang()
+        translation = app.config['TRANSLATIONS'][localization_lang]
+        wants_json = (
+            request.args.get('format') == 'json' or
+            'application/json' in request.headers.get('Accept', '') or
+            'application/*+json' in request.headers.get('Accept', '')
+        )
+        error_msg = f"SearXNG Error: {e.message}"
+        if wants_json:
+            return jsonify({
+                'error': True,
+                'error_message': error_msg,
+                'query': urlparse.unquote(query)
+            }), e.code
+        return render_template(
+            'error.html',
+            error_message=error_msg,
+            translation=translation,
+            config=g.user_config), e.code
 
     wants_json = (
         request.args.get('format') == 'json' or
@@ -458,6 +479,14 @@ def search():
         g.user_config.cse_id
     )
     if use_cse:
+        tabs = {k: v for k, v in tabs.items() if k in ['all', 'images', 'maps']}
+
+    # SearXNG supports general, images, news, and videos categories
+    use_searxng = (
+        g.user_config.use_searxng and
+        g.user_config.searxng_url
+    )
+    if use_searxng:
         tabs = {k: v for k, v in tabs.items() if k in ['all', 'images', 'maps']}
 
     # Feature to display currency_card

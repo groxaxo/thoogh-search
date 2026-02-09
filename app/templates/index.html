@@ -281,6 +281,31 @@
                                    placeholder="abc123..."
                                    autocomplete="off">
                         </div>
+                        <!-- SearXNG Instance Settings -->
+                        <div class="config-div config-div-searxng-header" style="margin-top: 20px; border-top: 1px solid var(--result-bg); padding-top: 15px;">
+                            <strong>SearXNG Instance</strong>
+                            <div><span class="info-text"> — Route searches through a <a href="https://github.com/searxng/searxng">SearXNG</a> instance to avoid Google's anti-bot measures</span></div>
+                        </div>
+                        <div class="config-div config-div-use-searxng">
+                            <label for="config-use-searxng">Use SearXNG: </label>
+                            <input type="checkbox" name="use_searxng" id="config-use-searxng" {{ 'checked' if config.use_searxng else '' }}>
+                            <div><span class="info-text"> — Enable to route queries through a SearXNG instance</span></div>
+                        </div>
+                        <div class="config-div config-div-searxng-url">
+                            <label for="config-searxng-url">SearXNG Instance URL: </label>
+                            <input type="text" name="searxng_url" id="config-searxng-url"
+                                   value="{{ config.searxng_url }}"
+                                   placeholder="https://searx.example.com"
+                                   autocomplete="off">
+                        </div>
+                        <div class="config-div config-div-searxng-engines">
+                            <label for="config-searxng-engines">Search Engines: </label>
+                            <input type="text" name="searxng_engines" id="config-searxng-engines"
+                                   value="{{ config.searxng_engines }}"
+                                   placeholder="google"
+                                   autocomplete="off">
+                            <div><span class="info-text"> — Comma-separated engines (e.g. google, duckduckgo, bing)</span></div>
+                        </div>
                         <div class="config-div config-div-root-url">
                             <label for="config-url">{{ translation['config-url'] }}: </label>
                             <input type="text" name="url" id="config-url" value="{{ config.url }}">
