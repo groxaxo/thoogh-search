@@ -6,6 +6,7 @@ from app.request import gen_query
 from app.utils.misc import get_proxy_host_url
 from app.utils.results import get_first_link
 from app.services.cse_client import CSEClient, cse_results_to_html
+from app.services.searxng_client import SearXNGClient, searxng_results_to_html
 from bs4 import BeautifulSoup as bsoup
 from cryptography.fernet import Fernet, InvalidToken
 from flask import g
@@ -144,6 +145,16 @@ class Search:
                                 query=self.query,
                                 page_url=self.request.url)
         
+        # Check if SearXNG should be used
+        use_searxng = (
+            self.config.use_searxng and
+            self.config.searxng_url
+        )
+
+        if use_searxng:
+            # Use SearXNG instance for search
+            return self._generate_searxng_response(content_filter, root_url, mobile)
+
         # Check if CSE (Custom Search Engine) should be used
         use_cse = (
             self.config.use_cse and 
@@ -157,7 +168,83 @@ class Search:
         
         # Default: Use traditional scraping method
         return self._generate_scrape_response(content_filter, root_url, mobile)
-    
+
+    def _generate_searxng_response(self, content_filter: Filter, root_url: str, mobile: bool) -> str:
+        """Generate response using a SearXNG instance.
+
+        Routes the search query through a SearXNG instance which handles
+        Google's anti-bot measures and returns structured results.
+
+        Args:
+            content_filter: Filter instance for processing results
+            root_url: Root URL of the instance
+            mobile: Whether this is a mobile request
+
+        Returns:
+            str: HTML response string
+        """
+        # Convert Whoogle's start param (0-based, 10 per page) to SearXNG pageno (1-based)
+        start = int(self.request_params.get('start', 0))
+        pageno = (start // 10) + 1
+
+        # Determine safe search level
+        safesearch = 2 if self.config.safe else 0
+
+        # Determine search category
+        categories = 'general'
+        is_image = self.search_type == 'isch' or self.request_params.get('udm') == '2'
+        if is_image:
+            categories = 'images'
+
+        # Map Whoogle time period (tbs) to SearXNG time_range
+        # SearXNG supports: day, week, month, year (no hourly option)
+        time_range = ''
+        tbs = self.request_params.get('tbs', '')
+        if 'qdr:h' in tbs or 'qdr:d' in tbs:
+            # Hourly (qdr:h) falls back to 'day' since SearXNG has no hourly range
+            time_range = 'day'
+        elif 'qdr:w' in tbs:
+            time_range = 'week'
+        elif 'qdr:m' in tbs:
+            time_range = 'month'
+        elif 'qdr:y' in tbs:
+            time_range = 'year'
+
+        # Create SearXNG client and perform search
+        engines = self.config.searxng_engines if self.config.searxng_engines else 'google'
+        with SearXNGClient(
+            instance_url=self.config.searxng_url,
+            engines=engines,
+        ) as client:
+            response = client.search(
+                query=self.query,
+                categories=categories,
+                language=self.config.lang_search,
+                pageno=pageno,
+                time_range=time_range,
+                safesearch=safesearch,
+            )
+
+        # Convert SearXNG response to HTML
+        html_content = searxng_results_to_html(response, self.query)
+
+        # Store full query for tabs
+        self.full_query = self.query
+
+        # Parse and filter the HTML
+        html_soup = bsoup(html_content, 'html.parser')
+
+        # Handle feeling lucky
+        if self.feeling_lucky:
+            if response.has_results and response.results:
+                return response.results[0].url
+            self.feeling_lucky = False
+
+        # Apply content filter (encrypts links, applies CSS, etc.)
+        formatted_results = content_filter.clean(html_soup)
+
+        return str(formatted_results)
+
     def _generate_cse_response(self, content_filter: Filter, root_url: str, mobile: bool) -> str:
         """Generate response using Google Custom Search API
         

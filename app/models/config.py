@@ -99,6 +99,11 @@ class Config:
         self.cse_id = os.getenv('WHOOGLE_CSE_ID', '')
         self.use_cse = read_config_bool('WHOOGLE_USE_CSE')
 
+        # SearXNG instance settings
+        self.searxng_url = os.getenv('WHOOGLE_SEARXNG_URL', '')
+        self.use_searxng = read_config_bool('WHOOGLE_USE_SEARXNG')
+        self.searxng_engines = os.getenv('WHOOGLE_SEARXNG_ENGINES', 'google')
+
         self.accept_language = False
 
         # Skip setting custom config if there isn't one
