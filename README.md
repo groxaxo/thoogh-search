@@ -675,12 +675,12 @@ You can use SearXNG in two ways:
 
 #### Option 1: Use a Public SearXNG Instance (Easiest)
 
-Many public SearXNG instances are available. Popular ones include:
+Many public SearXNG instances are available. Some examples include:
 - https://search.bus-hit.me
 - https://search.sapti.me
 - https://searx.tiekoetter.com
 
-Find more instances at: https://searx.space/
+**Note**: Public instance availability may change over time. For an up-to-date list of active instances with reliability ratings, visit: https://searx.space/
 
 #### Option 2: Self-Host SearXNG (Most Private)
 
