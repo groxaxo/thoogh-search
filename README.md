@@ -1,10 +1,14 @@
->[!WARNING]
+# Whoogle Search - 2026 Edition
+
+>[!NOTE]
+>**Multiple Search Provider Support**
 >
->Since 16 January, 2025, Google has been attacking the ability to perform search queries without JavaScript enabled. This is a fundamental part of how Whoogle
->works -- Whoogle requests the JavaScript-free search results, then filters out garbage from the results page and proxies all external content for the user.
+>Whoogle now supports three search provider methods to ensure reliability:
+>1. **Direct Google Scraping** (default) - Uses auto-generated Opera User Agents for better anti-detection
+>2. **Google Custom Search API** (BYOK) - Bring Your Own Key for 100 free queries/day
+>3. **SearXNG Integration** - Route through a SearXNG instance for enhanced privacy
 >
->This is possibly a breaking change that may mean the end for Whoogle. We'll continue fighting back and releasing workarounds until all workarounds are 
->exhausted or a better method is found. If you know of a better way, please review and comment in our Way Forward Discussion
+>See [Search Providers](#search-providers) for configuration details.
 
 ___
 
@@ -28,17 +32,13 @@ Get Google search results, but without any ads, JavaScript, AMP links, cookies, 
 Contents
 1. [Features](#features)
 3. [Install/Deploy Options](#install)
-    1. [Heroku Quick Deploy](#heroku-quick-deploy)
-    1. [Render.com](#render)
-    1. [Repl.it](#replit)
-    1. [Fly.io](#flyio)
-    1. [Koyeb](#koyeb)
+    1. [Docker](#docker-recommended)
+    1. [Kubernetes/Helm](#helm-chart-for-kubernetes)
     1. [pipx](#pipx)
     1. [pip](#pip)
     1. [Manual](#manual)
-    1. [Docker](#manual-docker)
     1. [Arch/AUR](#arch-linux--arch-based-distributions)
-    1. [Helm/Kubernetes](#helm-chart-for-kubernetes)
+    1. [Cloud Platforms](#cloud-platforms)
 4. [Environment Variables and Configuration](#environment-variables)
 5. [Search Providers](#search-providers)
     1. [Google Custom Search (BYOK)](#google-custom-search-byok)
@@ -48,11 +48,11 @@ Contents
     1. [Set Primary Search Engine](#set-whoogle-as-your-primary-search-engine)
 	2. [Custom Redirecting](#custom-redirecting)
 	2. [Custom Bangs](#custom-bangs)
-    3. [Prevent Downtime (Heroku Only)](#prevent-downtime-heroku-only)
-    4. [Manual HTTPS Enforcement](#https-enforcement)
-    5. [Using with Firefox Containers](#using-with-firefox-containers)
-    6. [Reverse Proxying](#reverse-proxying)
+    3. [Manual HTTPS Enforcement](#https-enforcement)
+    4. [Using with Firefox Containers](#using-with-firefox-containers)
+    5. [Reverse Proxying](#reverse-proxying)
         1. [Nginx](#nginx)
+    6. [Security Best Practices](#security-best-practices)
 8. [Contributing](#contributing)
 9. [FAQ](#faq)
 10. [Public Instances](#public-instances)
@@ -110,79 +110,71 @@ There are a few different ways to begin using the app, depending on your prefere
 
 ___
 
-### [Heroku Quick Deploy](https://heroku.com/about)
-[![Deploy](https://www.herokucdn.com/deploy/button.svg)](https://heroku.com/deploy?template=https://github.com/benbusby/whoogle-search/tree/main)
+### Docker (Recommended)
 
-Provides:
-- Easy Deployment of App
-- A HTTPS url (https://\<your app name\>.herokuapp.com)
+Docker is the recommended deployment method for production use, providing consistent and secure deployments.
 
-Notes:
-- Requires a **PAID** Heroku Account.
-- Sometimes has issues with auto-redirecting to `https`. Make sure to navigate to the `https` version of your app before adding as a default search engine.
+#### Using Docker Hub
 
-___
-
-### [Render](https://render.com)
-
-Create an account on [render.com](https://render.com) and import the Whoogle repo with the following settings:
-
-- Runtime: `Python 3`
-- Build Command: `pip install -r requirements.txt`
-- Run Command: `./run`
-
-___
-
-### [Repl.it](https://repl.it)
-[![Run on Repl.it](https://repl.it/badge/github/benbusby/whoogle-search)](https://repl.it/github/benbusby/whoogle-search)
-
-*Note: Requires a (free) Replit account*
-
-Provides:
-- Free deployment of app
-- Free HTTPS url (https://\<app name\>.\<username\>\.repl\.co)
-    - Supports custom domains
-- Downtime after periods of inactivity ([solution](https://repl.it/talk/learn/How-to-use-and-setup-UptimeRobot/9003)\)
-
-___
-
-### [Fly.io](https://fly.io)
-
-You will need a [Fly.io](https://fly.io) account to deploy Whoogle.
-
-#### Install the CLI: https://fly.io/docs/hands-on/installing/
-
-#### Deploy the app
+Pull and run the official image:
 
 ```bash
-flyctl auth login
-flyctl launch --image benbusby/whoogle-search:latest
+docker pull benbusby/whoogle-search
+docker run -d -p 5000:5000 --name whoogle benbusby/whoogle-search
 ```
 
-The first deploy won't succeed because the default `internal_port` is wrong.
-To fix this, open the generated `fly.toml` file, set `services.internal_port` to `5000` and run `flyctl launch` again.
+Access at `http://localhost:5000`
 
-Your app is now available at `https://<app-name>.fly.dev`.
+#### Using Docker Compose
 
-Notes:
-- Requires a [**PAID**](https://fly.io/docs/about/pricing/#free-allowances) Fly.io Account.
+Create a `docker-compose.yml`:
+
+```yaml
+version: '3.7'
+services:
+  whoogle:
+    image: benbusby/whoogle-search:latest
+    container_name: whoogle-search
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+    environment:
+      - WHOOGLE_CONFIG_THEME=dark
+      - WHOOGLE_CONFIG_URL=https://search.example.com
+    volumes:
+      - ./config:/config
+```
+
+Then run:
+```bash
+docker-compose up -d
+```
+
+#### Building from Source
+
+```bash
+git clone https://github.com/benbusby/whoogle-search.git
+cd whoogle-search
+docker build -t whoogle-search .
+docker run -d -p 5000:5000 whoogle-search
+```
+
+See [Environment Variables](#environment-variables) for configuration options.
 
 ___
 
-### [Koyeb](https://www.koyeb.com)
+### Helm Chart for Kubernetes
 
-Use one of the following guides to install Whoogle on Koyeb:
+For production deployments at scale, use the Helm chart:
 
-1. Using GitHub: https://www.koyeb.com/docs/quickstart/deploy-with-git
-2. Using Docker: https://www.koyeb.com/docs/quickstart/deploy-a-docker-application
+```bash
+helm repo add whoogle https://benbusby.github.io/whoogle-search
+helm repo update
+helm install whoogle whoogle/whoogle-search
+```
 
-___
+See the [charts directory](charts/) for advanced configuration options.
 
-### [RepoCloud](https://repocloud.io)
-[![Deploy on RepoCloud](https://d16t0pc4846x52.cloudfront.net/deploylobe.svg)](https://repocloud.io/details/?app_id=309)
-
-1. Sign up for a free [RepoCloud account](https://repocloud.io) and receive free credits to get started.
-2. Click "Deploy" to launch the app and access it instantly via your RepoCloud URL.
 ___
 
 ### [pipx](https://github.com/pipxproject/pipx#install-pipx)
@@ -402,21 +394,6 @@ docker run --publish 5000:5000 --detach --name whoogle-search \
 
 And kill with: `docker rm --force whoogle-search`
 
-#### Using [Heroku CLI](https://devcenter.heroku.com/articles/heroku-cli)
-```bash
-heroku login
-heroku container:login
-git clone https://github.com/benbusby/whoogle-search.git
-cd whoogle-search
-heroku create
-heroku container:push web
-heroku container:release web
-heroku open
-```
-
-This series of commands can take a while, but once you run it once, you shouldn't have to run it again. The final command, `heroku open` will launch a tab in your web browser, where you can test out Whoogle and even [set it as your primary search engine](https://github.com/benbusby/whoogle-search#set-whoogle-as-your-primary-search-engine).
-You may also edit environment variables from your app’s Settings tab in the Heroku Dashboard.
-
 ___
 
 ### Arch Linux & Arch-based Distributions
@@ -424,23 +401,61 @@ There is an [AUR package available](https://aur.archlinux.org/packages/whoogle-g
 
 ___
 
-### Helm chart for Kubernetes
-To use the Kubernetes Helm Chart:
-1. Ensure you have [Helm](https://helm.sh/docs/intro/install/) `>=3.0.0` installed
-2. Clone this repository
-3. Update [charts/whoogle/values.yaml](./charts/whoogle/values.yaml) as desired
-4. Run `helm upgrade --install whoogle ./charts/whoogle`
+### Cloud Platforms
+
+Whoogle can be deployed on various modern cloud platforms using Docker:
+
+#### Railway
+1. Create a [Railway](https://railway.app) account (free tier available)
+2. Click "New Project" → "Deploy from GitHub repo"
+3. Select your Whoogle fork or use the Docker image: `benbusby/whoogle-search:latest`
+4. Set environment variables as needed
+5. Deploy and access via the provided Railway URL
+
+#### Render
+1. Create a [Render](https://render.com) account
+2. New → Web Service → Docker
+3. Use Docker image: `benbusby/whoogle-search:latest`
+4. Configure port 5000 and environment variables
+5. Free tier available with some limitations
+
+#### DigitalOcean App Platform
+1. Create a [DigitalOcean](https://www.digitalocean.com) account
+2. Apps → Create App → Docker Hub
+3. Use image: `benbusby/whoogle-search:latest`
+4. Configure with 512MB RAM (recommended minimum)
+5. Set environment variables and deploy
+
+#### Self-Hosted VPS
+For maximum privacy and control, deploy on your own VPS:
+- Providers: Digital Ocean, Linode, Hetzner, OVH, etc.
+- Requirements: 512MB+ RAM, 10GB+ storage
+- Set up Docker or use manual installation
+- Configure HTTPS with Let's Encrypt
+- Use reverse proxy (Nginx/Caddy) for SSL termination
 
 ___
 
-#### Using your own server, or alternative container deployment
-There are other methods for deploying docker containers that are well outlined in [this article](https://rollout.io/blog/the-shortlist-of-docker-hosting/), but there are too many to describe set up for each here. Generally it should be about the same amount of effort as the Heroku deployment.
+### Helm chart for Kubernetes
+To use the Kubernetes Helm Chart:
+1. Ensure you have [Helm](https://helm.sh/docs/intro/install/) `>=3.0.0` installed
+2. Add the Whoogle Helm repository:
+   ```bash
+   helm repo add whoogle https://benbusby.github.io/whoogle-search
+   helm repo update
+   ```
+3. Install with custom values:
+   ```bash
+   helm install whoogle whoogle/whoogle-search --set image.tag=latest
+   ```
+4. Or clone the repository and customize [charts/whoogle/values.yaml](./charts/whoogle/values.yaml):
+   ```bash
+   git clone https://github.com/benbusby/whoogle-search.git
+   cd whoogle-search
+   helm upgrade --install whoogle ./charts/whoogle
+   ```
 
-Depending on your preferences, you can also deploy the app yourself on your own infrastructure. This route would require a few extra steps:
-  - A server (I personally recommend [Digital Ocean](https://www.digitalocean.com/pricing/) or [Linode](https://www.linode.com/pricing/), their cheapest tiers will work fine)
-  - Your own URL (I suppose this is optional, but recommended)
-  - SSL certificates (free through [Let's Encrypt](https://letsencrypt.org/getting-started/))
-  - A bit more experience or willingness to work through issues
+___
 
 ## Environment Variables
 There are a few optional environment variables available for customizing a Whoogle instance. These can be set manually, or copied into `whoogle.env` and enabled for your preferred deployment method:
@@ -839,21 +854,12 @@ overriding bangs set in earlier files, with the exception that DDG bangs
 (downloaded to `app/static/bangs/bangs.json`) are always parsed first. Thus,
 any custom bangs will always override the DDG ones.
 
-### Prevent Downtime (Heroku only)
-Part of the deal with Heroku's free tier is that you're allocated 550 hours/month (meaning it can't stay active 24/7), and the app is temporarily shut down after 30 minutes of inactivity. Once it becomes inactive, any Whoogle searches will still work, but it'll take an extra 10-15 seconds for the app to come back online before displaying the result, which can be frustrating if you're in a hurry.
-
-A good solution for this is to set up a simple cronjob on any device at your home that is consistently powered on and connected to the internet (in my case, a PiHole worked perfectly). All the device needs to do is fetch app content on a consistent basis to keep the app alive in whatever ~17 hour window you want it on (17 hrs * 31 days = 527, meaning you'd still have 23 leftover hours each month if you searched outside of your target window).
-
-For instance, adding `*/20 7-23 * * * curl https://<your heroku app name>.herokuapp.com > /home/<username>/whoogle-refresh` will fetch the home page of the app every 20 minutes between 7am and midnight, allowing for downtime from midnight to 7am. And again, this wouldn't be a hard limit - you'd still have plenty of remaining hours of uptime each month in case you were searching after this window has closed.
-
-Since the instance is destroyed and rebuilt after inactivity, config settings will be reset once the app enters downtime. If you have configuration settings active that you'd like to keep between periods of downtime (like dark mode for example), you could instead add `*/20 7-23 * * * curl -d "dark=1" -X POST https://<your heroku app name>.herokuapp.com/config > /home/<username>/whoogle-refresh` to keep these settings more or less permanent, and still keep the app from entering downtime when you're using it.
-
 ### HTTPS Enforcement
 Only needed if your setup requires Flask to redirect to HTTPS on its own -- generally this is something that doesn't need to be handled by Whoogle Search.
 
 Note: You should have your own domain name and [an https certificate](https://letsencrypt.org/getting-started/) in order for this to work properly.
 
-- Heroku: Ensure that the `Root URL` configuration on the home page begins with `https://` and not `http://`
+- Docker build: Add `--build-arg use_https=1` to your run command`
 - Docker build: Add `--build-arg use_https=1` to your run command
 - Docker image: Set the environment variable HTTPS_ONLY=1
 - Pip/Pipx: Add the `--https-only` flag to the end of the `whoogle-search` command
@@ -1025,6 +1031,90 @@ The tool evaluates UAs against multiple criteria:
 5. **Content Analysis**: Validates response size and structure
 
 This tool was used to discover and validate the working Opera UA patterns that power Whoogle's auto-generation feature.
+
+## Security Best Practices
+
+### 2026 Security Standards
+
+Whoogle implements modern security standards to maximize anonymity and protection:
+
+#### Transport Security
+- **HTTPS Only**: Always use HTTPS in production
+- **HSTS**: Enable HTTP Strict Transport Security headers
+- **TLS 1.3**: Use modern TLS versions only (disable TLS 1.0/1.1)
+- **Certificate Pinning**: Consider implementing for mobile apps
+
+#### Headers & CSP
+```nginx
+# Recommended security headers for reverse proxy
+add_header Strict-Transport-Security "max-age=31536000; includeSubDomains; preload" always;
+add_header X-Frame-Options "DENY" always;
+add_header X-Content-Type-Options "nosniff" always;
+add_header Referrer-Policy "no-referrer" always;
+add_header Permissions-Policy "geolocation=(), microphone=(), camera=()" always;
+```
+
+Set `WHOOGLE_CSP` environment variable for Content Security Policy headers.
+
+#### DNS Privacy
+- **DNS-over-HTTPS (DoH)**: Configure your system/browser to use DoH
+  - Cloudflare: `https://1.1.1.1/dns-query`
+  - Quad9: `https://dns.quad9.net/dns-query`
+- **DNS-over-TLS (DoT)**: Alternative to DoH
+- **DNSCrypt**: Another privacy-focused DNS option
+
+#### Network Anonymization
+1. **Tor Integration**: Enable Tor in Whoogle configuration for maximum anonymity
+2. **VPN**: Use a no-log VPN provider (Mullvad, ProtonVPN, IVPN)
+3. **Proxy Chains**: Layer SOCKS5 proxies for additional protection
+4. **I2P/Lokinet**: Consider alternative anonymity networks
+
+#### Container Security
+```bash
+# Run as non-root user (already configured in Dockerfile)
+docker run --user 927:927 benbusby/whoogle-search
+
+# Limit container capabilities
+docker run --cap-drop=ALL --cap-add=NET_BIND_SERVICE benbusby/whoogle-search
+
+# Read-only root filesystem
+docker run --read-only --tmpfs /tmp benbusby/whoogle-search
+
+# Resource limits
+docker run --memory=512m --cpus=0.5 benbusby/whoogle-search
+```
+
+#### Monitoring & Auditing
+- **Log Anonymization**: Whoogle doesn't log searches by default
+- **Audit Logs**: Monitor access logs for unusual patterns
+- **Intrusion Detection**: Use tools like Fail2Ban for rate limiting
+- **SBOM Generation**: Track dependencies for vulnerability management
+
+#### Authentication Best Practices
+- Use strong passwords with `WHOOGLE_USER` and `WHOOGLE_PASS`
+- Consider implementing OAuth2/OIDC for multi-user deployments
+- Enable 2FA at the reverse proxy level (Authelia, Authentik)
+- Use client certificates for additional authentication
+
+#### Data Protection
+- **No Persistent Storage**: Whoogle is stateless for search queries
+- **Session Security**: Configure secure, httpOnly cookies
+- **Encrypted Config**: Use `preferences_encrypted` option
+- **Secure Backups**: Encrypt any configuration backups
+
+#### Regular Maintenance
+```bash
+# Update dependencies regularly
+pip install --upgrade -r requirements.txt
+
+# Update Docker images
+docker pull benbusby/whoogle-search:latest
+
+# Security scanning
+docker scan benbusby/whoogle-search:latest
+```
+
+For vulnerability reporting, please see `SECURITY.md` in the repository.
 
 ## Known Issues
 
