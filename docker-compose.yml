@@ -19,6 +19,23 @@ services:
       - /config/:size=10M,uid=927,gid=927,mode=1700
       - /var/lib/tor/:size=15M,uid=927,gid=927,mode=1700
       - /run/tor/:size=1M,uid=927,gid=927,mode=1700
+    # Health check for container monitoring
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/healthz"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    # Logging configuration (JSON for log aggregation)
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+        labels: "service,environment"
+        tag: "{{.Name}}/{{.ID}}"
+    # Resource limits (CPU)
+    cpus: 0.5
     #environment: # Uncomment to configure environment variables
       # Basic auth configuration, uncomment to enable
       #- WHOOGLE_USER=<auth username>
@@ -42,7 +59,27 @@ services:
       #- WHOOGLE_ALT_IMDB=farside.link/libremdb
       #- WHOOGLE_ALT_QUORA=farside.link/quetre
       #- WHOOGLE_ALT_SO=farside.link/anonymousoverflow
+      # Security headers
+      #- WHOOGLE_CSP=1
+      # Search provider options (2026 reliability)
+      #- WHOOGLE_CONFIG_USE_CSE=0  # Use Google Custom Search API
+      #- WHOOGLE_CONFIG_CSE_API_KEY=your-api-key
+      #- WHOOGLE_CONFIG_CSE_ID=your-cse-id
+      #- WHOOGLE_CONFIG_USE_SEARXNG=0  # Route through SearXNG
+      #- WHOOGLE_CONFIG_SEARXNG_URL=https://searx.example.com
     #env_file: # Alternatively, load variables from whoogle.env
       #- whoogle.env
     ports:
-      - 5000:5000
+      - "5000:5000"
+    # Network isolation (optional, for advanced setups)
+    # networks:
+    #   - whoogle-net
+
+# Optional: Create isolated network
+# networks:
+#   whoogle-net:
+#     driver: bridge
+#     ipam:
+#       config:
+#         - subnet: 172.28.0.0/16
+
