@@ -3,12 +3,16 @@ name: scan
 on:
   schedule:
     - cron: '0 0 * * *'
+  workflow_dispatch:  # Allow manual trigger
 
 jobs:
   scan:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
     - name: Build the container image
       run: |
         docker build --tag whoogle-search:test .
@@ -16,4 +20,10 @@ jobs:
       run: |
         curl -sSfL https://raw.githubusercontent.com/anchore/grype/main/install.sh | sh -s -- -b .
         chmod +x ./grype
-        ./grype whoogle-search:test --only-fixed
+        ./grype whoogle-search:test --only-fixed --output sarif --file grype-results.sarif || true
+    - name: Upload SARIF results
+      uses: github/codeql-action/upload-sarif@v3
+      if: always()
+      with:
+        sarif_file: grype-results.sarif
+
