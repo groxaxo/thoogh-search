@@ -20,6 +20,16 @@
     <p>
         {{ error_message }}
     </p>
+    {% if suggestions %}
+    <div class="suggestions">
+        <h4>Suggestions:</h4>
+        <ul>
+            {% for suggestion in suggestions %}
+            <li>{{ suggestion }}</li>
+            {% endfor %}
+        </ul>
+    </div>
+    {% endif %}
     <hr>
     {% if query and translation %}
         <p>

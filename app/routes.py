@@ -42,6 +42,29 @@ ac_var = 'WHOOGLE_AUTOCOMPLETE'
 autocomplete_enabled = os.getenv(ac_var, '1')
 
 
+def _build_error_json(error_message, query='', error_type='unknown',
+                      suggestions=None, recoverable=False, status_code=500,
+                      extra=None):
+    """Build a structured, actionable JSON error response.
+
+    Inspired by the "Self-Healing Errors" design principle: return
+    actionable errors that include context and potential fixes.
+    """
+    response = {
+        'error': True,
+        'error_type': error_type,
+        'error_message': error_message,
+        'recoverable': recoverable,
+    }
+    if query:
+        response['query'] = urlparse.unquote(query)
+    if suggestions:
+        response['suggestions'] = suggestions
+    if extra:
+        response.update(extra)
+    return jsonify(response), status_code
+
+
 def get_search_name(tbm):
     for tab in app.config['HEADER_TABS'].values():
         if tab['tbm'] == tbm:
@@ -367,19 +390,25 @@ def search():
             'application/*+json' in request.headers.get('Accept', '')
         )
         error_msg = f"Custom Search API Error: {e.message}"
+        suggestions = ['Verify your CSE API key and search engine ID',
+                       'Check the Whoogle settings page for CSE configuration']
         if e.is_quota_error:
             error_msg = ("Google Custom Search API quota exceeded. "
                         "Free tier allows 100 queries/day. "
                         "Wait until midnight PT or disable CSE in settings.")
+            suggestions = ['Wait until midnight PT for quota reset',
+                           'Disable CSE in settings to use direct scraping']
         if wants_json:
-            return jsonify({
-                'error': True,
-                'error_message': error_msg,
-                'query': urlparse.unquote(query)
-            }), e.code
+            return _build_error_json(
+                error_msg, query=query,
+                error_type='cse_error',
+                suggestions=suggestions,
+                recoverable=e.is_quota_error,
+                status_code=e.code)
         return render_template(
             'error.html',
             error_message=error_msg,
+            suggestions=suggestions,
             translation=translation,
             config=g.user_config), e.code
     except SearXNGException as e:
@@ -391,15 +420,19 @@ def search():
             'application/*+json' in request.headers.get('Accept', '')
         )
         error_msg = f"SearXNG Error: {e.message}"
+        suggestions = ['Verify the SearXNG instance URL is reachable',
+                       'Try a different SearXNG instance or disable SearXNG in settings']
         if wants_json:
-            return jsonify({
-                'error': True,
-                'error_message': error_msg,
-                'query': urlparse.unquote(query)
-            }), e.code
+            return _build_error_json(
+                error_msg, query=query,
+                error_type='searxng_error',
+                suggestions=suggestions,
+                recoverable=True,
+                status_code=e.code)
         return render_template(
             'error.html',
             error_message=error_msg,
+            suggestions=suggestions,
             translation=translation,
             config=g.user_config), e.code
 
@@ -437,11 +470,17 @@ def search():
             return redirect(fallback_engine + query)
         
         if wants_json:
-            return jsonify({
-                'blocked': True,
-                'error_message': translation['ratelimit'],
-                'query': urlparse.unquote(query)
-            }), 503
+            return _build_error_json(
+                translation['ratelimit'], query=query,
+                error_type='rate_limit',
+                suggestions=[
+                    'Wait a few minutes before retrying',
+                    'Configure a proxy in Whoogle settings',
+                    'Try using a different Whoogle instance'
+                ],
+                recoverable=True,
+                status_code=503,
+                extra={'blocked': True})
         else:
             return render_template(
                 'error.html',
@@ -610,6 +649,7 @@ def search():
         return jsonify({
             'query': urlparse.unquote(query),
             'search_type': search_util.search_type,
+            'result_count': len(results),
             'results': results
         })
 
@@ -880,6 +920,24 @@ def internal_error(e):
     if (fallback_engine):
         return redirect(fallback_engine + (query or ''))
 
+    # Check if JSON response is expected
+    wants_json = (
+        request.args.get('format') == 'json' or
+        'application/json' in request.headers.get('Accept', '') or
+        'application/*+json' in request.headers.get('Accept', '')
+    )
+    if wants_json:
+        return _build_error_json(
+            'Internal server error',
+            query=query or '',
+            error_type='internal_error',
+            suggestions=[
+                'Try your search again',
+                'Check Whoogle server logs for details'
+            ],
+            recoverable=True,
+            status_code=500)
+
     # Safely get localization language with fallback
     if hasattr(g, 'user_config'):
         localization_lang = g.user_config.get_localization_lang()
@@ -887,8 +945,11 @@ def internal_error(e):
         localization_lang = 'lang_en'
     translation = app.config['TRANSLATIONS'][localization_lang]
     # Build template context with safe defaults
+    suggestions = ['Try your search again',
+                   'Check Whoogle server logs for details']
     template_context = {
         'error_message': 'Internal server error (500)',
+        'suggestions': suggestions,
         'translation': translation,
         'farside': 'https://farside.link',
         'query': urlparse.unquote(query or '')
