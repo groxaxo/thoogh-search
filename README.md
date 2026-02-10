@@ -40,7 +40,9 @@ Contents
     1. [Arch/AUR](#arch-linux--arch-based-distributions)
     1. [Helm/Kubernetes](#helm-chart-for-kubernetes)
 4. [Environment Variables and Configuration](#environment-variables)
-5. [Google Custom Search (BYOK)](#google-custom-search-byok)
+5. [Search Providers](#search-providers)
+    1. [Google Custom Search (BYOK)](#google-custom-search-byok)
+    2. [SearXNG Integration](#searxng-integration)
 6. [Usage](#usage)
 7. [Extra Steps](#extra-steps)
     1. [Set Primary Search Engine](#set-whoogle-as-your-primary-search-engine)
@@ -76,6 +78,10 @@ Contents
   - Fallback to safe default UA if generation fails
   - Optional display of current UA in search results footer
 - Easy to install/deploy
+- Multiple search provider options:
+  - Direct Google scraping (default)
+  - Google Custom Search API (BYOK) for reliability
+  - SearXNG integration for enhanced privacy and anti-detection
 - DDG-style bang (i.e. `!<tag> <query>`) searches
 - User-defined [custom bangs](#custom-bangs)
 - Optional location-based searching (i.e. results near \<city\>)
@@ -512,15 +518,49 @@ These environment variables allow setting default config values, but can be over
 | WHOOGLE_CONFIG_ANON_VIEW             | Include the "anonymous view" option for each search result      |
 | WHOOGLE_CONFIG_SHOW_USER_AGENT       | Display the User Agent string used for search in results footer |
 
-### Google Custom Search (BYOK) Environment Variables
+### Search Provider Environment Variables
 
-These environment variables configure the "Bring Your Own Key" feature for Google Custom Search API:
+These environment variables configure alternative search providers.
+
+#### Google Custom Search (BYOK)
 
 | Variable             | Description                                                                               |
 | -------------------- | ----------------------------------------------------------------------------------------- |
 | WHOOGLE_CSE_API_KEY  | Your Google API key with Custom Search API enabled                                        |
 | WHOOGLE_CSE_ID       | Your Custom Search Engine ID (cx parameter)                                               |
 | WHOOGLE_USE_CSE      | Enable Custom Search API by default (set to '1' to enable)                                |
+
+#### SearXNG Integration
+
+| Variable                | Description                                                                               |
+| ----------------------- | ----------------------------------------------------------------------------------------- |
+| WHOOGLE_SEARXNG_URL     | URL of your SearXNG instance (e.g., 'https://search.example.com')                         |
+| WHOOGLE_USE_SEARXNG     | Enable SearXNG as search provider by default (set to '1' to enable)                       |
+| WHOOGLE_SEARXNG_ENGINES | Comma-separated list of SearXNG engines to use (default: 'google')                        |
+
+## Search Providers
+
+Whoogle supports three different methods for retrieving search results:
+
+1. **Direct Google Scraping** (default) - Scrapes Google's HTML search results directly
+2. **Google Custom Search API (BYOK)** - Uses Google's official API with your own API key and quota
+3. **SearXNG Integration** - Routes queries through a SearXNG metasearch instance
+
+Each method has different trade-offs in terms of reliability, cost, privacy, and features. Choose the one that best fits your needs.
+
+### Comparison Table
+
+| Feature              | Direct Scraping          | Google CSE API       | SearXNG              |
+|----------------------|--------------------------|----------------------|----------------------|
+| Setup Complexity     | None (default)           | Moderate (API setup) | Easy (instance URL)  |
+| Daily Limit          | None (until blocked)     | 100 free, then paid  | Depends on instance  |
+| Cost                 | Free                     | Free up to 100/day   | Free                 |
+| Reliability          | Can be blocked           | Always works         | High                 |
+| Image search         | ✅ Full support          | ✅ Supported         | ✅ Supported         |
+| News/Videos tabs     | ✅                       | ❌ Web results only  | Varies by engine     |
+| Speed                | Slower (HTML parsing)    | Faster (JSON)        | Fast (JSON)          |
+| Privacy              | Direct to Google         | Direct to Google     | Via SearXNG proxy    |
+| JavaScript Required  | No                       | No                   | No                   |
 
 ## Google Custom Search (BYOK)
 
@@ -608,6 +648,89 @@ WHOOGLE_USE_CSE=1
 | "API key not valid" | Invalid or restricted key | Check key in Cloud Console, ensure Custom Search API is enabled |
 | "Quota exceeded"    | Hit 100/day limit         | Wait until midnight PT, or enable billing                       |
 | "Invalid CSE ID"    | Wrong cx parameter        | Copy ID from Programmable Search Engine control panel           |
+
+## SearXNG Integration
+
+SearXNG is a privacy-respecting metasearch engine that aggregates results from multiple search engines. By routing queries through a SearXNG instance, Whoogle can avoid Google's anti-bot measures while still providing search results.
+
+### Why Use This?
+
+- **Reliability**: SearXNG instances have their own anti-detection infrastructure, reducing blocks
+- **Privacy**: Queries go through SearXNG's proxy layer, adding an extra privacy hop
+- **No Quotas**: Unlike CSE API, there are no daily query limits (depends on instance)
+- **Free**: No API keys or billing required
+- **Flexibility**: Can aggregate results from multiple search engines, not just Google
+
+### Limitations vs Standard Whoogle
+
+While SearXNG provides excellent reliability and privacy, there are some considerations:
+
+- **Instance Dependency**: Relies on the availability of your chosen SearXNG instance
+- **Feature Parity**: Some Whoogle features may behave differently when using SearXNG
+- **Result Quality**: Results depend on the SearXNG instance's configuration and available engines
+
+### Setup Options
+
+You can use SearXNG in two ways:
+
+#### Option 1: Use a Public SearXNG Instance (Easiest)
+
+Many public SearXNG instances are available. Popular ones include:
+- https://search.bus-hit.me
+- https://search.sapti.me
+- https://searx.tiekoetter.com
+
+Find more instances at: https://searx.space/
+
+#### Option 2: Self-Host SearXNG (Most Private)
+
+For maximum privacy and control, run your own SearXNG instance. See the [SearXNG documentation](https://docs.searxng.org/) for installation instructions.
+
+Quick setup with Docker:
+```bash
+docker run -d \
+  --name searxng \
+  -p 8080:8080 \
+  -e SEARXNG_SECRET=$(openssl rand -hex 32) \
+  searxng/searxng:latest
+```
+
+### Configure Whoogle to Use SearXNG
+
+**Option A: Via Settings UI**
+1. Open your Whoogle instance
+2. Click the **Config** button
+3. Scroll to "SearXNG Integration" section
+4. Enter your SearXNG instance URL (e.g., `https://search.bus-hit.me`)
+5. (Optional) Specify engines to use (default: `google`)
+6. Check "Use SearXNG"
+7. Click **Apply**
+
+**Option B: Via Environment Variables**
+```bash
+WHOOGLE_SEARXNG_URL=https://search.bus-hit.me
+WHOOGLE_USE_SEARXNG=1
+WHOOGLE_SEARXNG_ENGINES=google  # Optional: comma-separated list
+```
+
+### Engine Configuration
+
+The `WHOOGLE_SEARXNG_ENGINES` variable controls which search engines SearXNG uses:
+
+- `google` (default) - Google search results only
+- `google,bing` - Results from both Google and Bing
+- `duckduckgo,qwant` - Alternative search engines
+
+For available engines, check your SearXNG instance's `/config` endpoint.
+
+### Troubleshooting
+
+| Issue                      | Cause                              | Solution                                                    |
+|----------------------------|------------------------------------|------------------------------------------------------------|
+| "SearXNG instance unavailable" | Instance is down or URL is wrong | Check the instance URL, try a different public instance    |
+| Empty results              | Engine not available on instance   | Check instance's supported engines at `/config`            |
+| Slow response times        | Overloaded public instance         | Try a different instance or self-host                      |
+| Connection timeout         | Network issues or instance offline | Verify instance is accessible, check firewall settings     |
 
 ## Usage
 Same as most search engines, with the exception of filtering by time range.
