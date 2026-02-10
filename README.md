@@ -859,7 +859,6 @@ Only needed if your setup requires Flask to redirect to HTTPS on its own -- gene
 
 Note: You should have your own domain name and [an https certificate](https://letsencrypt.org/getting-started/) in order for this to work properly.
 
-- Docker build: Add `--build-arg use_https=1` to your run command`
 - Docker build: Add `--build-arg use_https=1` to your run command
 - Docker image: Set the environment variable HTTPS_ONLY=1
 - Pip/Pipx: Add the `--https-only` flag to the end of the `whoogle-search` command

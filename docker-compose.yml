@@ -34,8 +34,12 @@ services:
         max-file: "3"
         labels: "service,environment"
         tag: "{{.Name}}/{{.ID}}"
-    # Resource limits (CPU)
-    cpus: 0.5
+    # Resource limits
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
     #environment: # Uncomment to configure environment variables
       # Basic auth configuration, uncomment to enable
       #- WHOOGLE_USER=<auth username>

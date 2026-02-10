@@ -123,11 +123,10 @@ def main():
                 print(format_prometheus(metrics))
             
             if not args.continuous:
+                # Exit with error code if unhealthy when running once
+                if metrics['status'] != 'healthy':
+                    sys.exit(1)
                 break
-                
-            # Exit code based on health status
-            if metrics['status'] != 'healthy':
-                sys.exit(1)
             
             time.sleep(60)
             
