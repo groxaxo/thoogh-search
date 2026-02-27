@@ -1,5 +1,9 @@
-<html style="background: #000;">
+<html lang="en" style="background: #000;">
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Privacy-focused search engine with no ads, tracking, or data collection">
+    <meta name="theme-color" content="#000000">
     <link rel="apple-touch-icon" sizes="57x57" href="static/img/favicon/apple-icon-57x57.png">
     <link rel="apple-touch-icon" sizes="60x60" href="static/img/favicon/apple-icon-60x60.png">
     <link rel="apple-touch-icon" sizes="72x72" href="static/img/favicon/apple-icon-72x72.png">
@@ -64,14 +68,14 @@
         </style>
     </noscript>
     <style>{{ config.style }}</style>
-    <title>Whoogle Search</title>
+    <title>Whoogle Search - Private, Anonymous Search</title>
 </head>
 <body id="main">
-<div class="search-container">
-    <div class="logo-container">
+<div class="search-container" role="main">
+    <div class="logo-container" role="banner">
         {{ logo|safe }}
     </div>
-    <form id="search-form" action="search" method="{{ 'get' if config.get_only else 'post' }}">
+    <form id="search-form" action="search" method="{{ 'get' if config.get_only else 'post' }}" role="search" aria-label="Search form">
         <div class="search-fields">
             <div class="autocomplete">
                 {% if config.preferences %}
@@ -87,17 +91,20 @@
                         spellcheck="false"
                         autocorrect="off"
                         autocomplete="off"
-                        dir="auto">
+                        dir="auto"
+                        aria-label="Search query"
+                        placeholder="Search privately..."
+                        required>
             </div>
-            <input type="submit" id="search-submit" value="{{ translation['search'] }}">
+            <input type="submit" id="search-submit" value="{{ translation['search'] }}" aria-label="Submit search">
         </div>
     </form>
     {% if not config_disabled %}
         <br/>
-        <button id="config-collapsible" class="collapsible">{{ translation['config'] }}</button>
-        <div class="content">
+        <button id="config-collapsible" class="collapsible" aria-expanded="false" aria-controls="config-content">{{ translation['config'] }}</button>
+        <div class="content" id="config-content" role="region" aria-label="Configuration settings">
             <div class="config-fields">
-                <form id="config-form" action="config" method="post">
+                <form id="config-form" action="config" method="post" aria-label="Configuration form">
                     <div class="config-options">
                         <div class="config-div config-div-country">
                             <label for="config-country">{{ translation['config-country'] }}: </label>

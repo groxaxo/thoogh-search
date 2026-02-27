@@ -32,7 +32,7 @@ from app.utils.search import Search, needs_https, has_captcha
 from app.utils.session import valid_user_session
 from bs4 import BeautifulSoup as bsoup
 from flask import jsonify, make_response, request, redirect, render_template, \
-    send_file, session, url_for, g
+    send_file, send_from_directory, session, url_for, g
 import httpx
 from cryptography.fernet import Fernet, InvalidToken
 from cryptography.exceptions import InvalidSignature
@@ -227,6 +227,12 @@ def unknown_page(e):
 @app.route(f'/{Endpoint.healthz}', methods=['GET'])
 def healthz():
     return ''
+
+
+@app.route('/.well-known/security.txt', methods=['GET'])
+def security_txt():
+    return send_from_directory('static/.well-known', 'security.txt',
+                             mimetype='text/plain')
 
 
 @app.route('/', methods=['GET'])
